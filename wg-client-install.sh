@@ -14,9 +14,18 @@ install_wireguard() {
 
 # 2. 配置 WireGuard 文件
 configure_wireguard() {
+    # 提示用户将配置文件放入 /root 目录
+    echo "请将您的 WireGuard 配置文件放入 /root 目录，并确保文件名为 debian13.conf。"
+    read -p "如果文件已放好，请按 1 继续，如果没有放文件请按回车退出安装：" choice
+
+    if [ "$choice" != "1" ]; then
+        echo "未找到配置文件，安装终止！"
+        exit 1
+    fi
+
     # 复制配置文件到 /etc/wireguard 目录
     echo "正在复制配置文件到 /etc/wireguard/"
-    sudo cp /boot/debian13.conf /etc/wireguard/
+    sudo cp /root/debian13.conf /etc/wireguard/
 
     # 设置文件权限
     echo "设置文件权限为 600"
