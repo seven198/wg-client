@@ -24,8 +24,11 @@ Endpoint = ${SERVER_IP}:${SERVER_PORT}
 
 # 函数：安装 WireGuard 客户端
 install_wg_client() {
+    echo "[INFO] 开始安装 WireGuard 客户端..."
+
     # 写入客户端配置文件
     echo "$WG_CONFIG" > /etc/wireguard/wg0.conf
+    echo "[INFO] 配置文件写入完成"
 
     # 设置开机启动
     echo "是否设置开机自启? (Y/n)"
@@ -34,9 +37,9 @@ install_wg_client() {
 
     if [[ "$AUTO_START" == "Y" || "$AUTO_START" == "y" ]]; then
         systemctl enable wg-quick@wg0
-        echo "已设置开机自启"
+        echo "[INFO] 已设置开机自启"
     else
-        echo "跳过开机自启设置"
+        echo "[INFO] 跳过开机自启设置"
     fi
 
     # 安装 WireGuard
@@ -66,6 +69,7 @@ uninstall_wg_client() {
 
     # 删除 WireGuard 配置文件
     rm -f /etc/wireguard/wg0.conf
+    echo "[INFO] 配置文件已删除"
 
     # 卸载 WireGuard
     apt remove -y wireguard
@@ -73,12 +77,12 @@ uninstall_wg_client() {
 
     # 清理残留文件
     rm -rf /etc/wireguard
-    echo "WireGuard 客户端卸载完成"
+    echo "[INFO] WireGuard 客户端卸载完成"
 
     # 清理自启文件
     rm -f /etc/systemd/system/wg-quick@wg0.service
     rm -f /usr/local/bin/wd
-    echo "所有相关文件已删除"
+    echo "[INFO] 所有相关文件已删除"
 }
 
 # 主菜单
