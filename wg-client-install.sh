@@ -4,11 +4,11 @@ echo "     WireGuard 客户端一键安装（Debian）"
 echo "        支持开机自动启动（可交互）"
 echo "=============================================="
 
-# 设置公网IP和端口（内置）
+# 设置默认服务器IP和端口（内置）
 SERVER_IP="34.92.101.179"
 SERVER_PORT="51820"
 
-# 设置客户端配置（内置配置文件）
+# 预生成的客户端配置内容
 WG_CONFIG="
 [Interface]
 PrivateKey = YOUR_PRIVATE_KEY
@@ -22,13 +22,34 @@ AllowedIPs = 10.8.0.0/24
 Endpoint = ${SERVER_IP}:${SERVER_PORT}
 "
 
+# 临时文件路径
+TEMP_FILE="/tmp/wg0-temp.conf"
+
 # 函数：安装 WireGuard 客户端
 install_wg_client() {
-    echo "[INFO] 开始安装 WireGuard 客户端..."
+    # 更新并安装必要的软件包
+    apt update -y
+    apt install -y wireguard
 
-    # 写入客户端配置文件
-    echo "$WG_CONFIG" > /etc/wireguard/wg0.conf
-    echo "[INFO] 配置文件写入完成"
+    # 询问是否使用临时配置文件
+    echo "是否使用临时生成的配置文件？(Y/n)"
+    read -r USE_TEMP_CONFIG
+    USE_TEMP_CONFIG="${USE_TEMP_CONFIG:-Y}"
+
+    if [[ "$USE_TEMP_CONFIG" == "Y" || "$USE_TEMP_CONFIG" == "y" ]]; then
+        echo "[INFO] 使用临时配置文件"
+        echo "$WG_CONFIG" > "$TEMP_FILE"
+        echo "[INFO] 配置文件写入完成：$TEMP_FILE"
+        echo "请输入配置文件路径（按回车使用默认配置）："
+        read -r CONFIG_PATH
+        CONFIG_PATH="${CONFIG_PATH:-$TEMP_FILE}"
+
+        # 将配置文件写入到系统的 WireGuard 配置目录
+        mv "$CONFIG_PATH" /etc/wireguard/wg0.conf
+    else
+        echo "[INFO] 请输入自定义配置文件内容"
+        nano /etc/wireguard/wg0.conf
+    fi
 
     # 设置开机启动
     echo "是否设置开机自启? (Y/n)"
@@ -41,10 +62,6 @@ install_wg_client() {
     else
         echo "[INFO] 跳过开机自启设置"
     fi
-
-    # 安装 WireGuard
-    apt update -y
-    apt install -y wireguard
 
     # 启动 WireGuard
     systemctl start wg-quick@wg0
@@ -69,7 +86,6 @@ uninstall_wg_client() {
 
     # 删除 WireGuard 配置文件
     rm -f /etc/wireguard/wg0.conf
-    echo "[INFO] 配置文件已删除"
 
     # 卸载 WireGuard
     apt remove -y wireguard
@@ -77,12 +93,11 @@ uninstall_wg_client() {
 
     # 清理残留文件
     rm -rf /etc/wireguard
-    echo "[INFO] WireGuard 客户端卸载完成"
+    echo "WireGuard 客户端卸载完成"
 
     # 清理自启文件
     rm -f /etc/systemd/system/wg-quick@wg0.service
-    rm -f /usr/local/bin/wd
-    echo "[INFO] 所有相关文件已删除"
+    echo "所有相关文件已删除"
 }
 
 # 主菜单
