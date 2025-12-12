@@ -1,88 +1,105 @@
 #!/bin/bash
 
-echo "=============================================="
-echo "     WireGuard 客户端一键安装（Debian）"
-echo "        支持开机自动启动（可交互）"
-echo "=============================================="
+# 1. 安装 WireGuard
+install_wireguard() {
+    echo "正在更新软件包..."
+    sudo apt update
+    sudo apt upgrade -y
 
-# 设置公网IP和端口（内置）
-SERVER_IP="34.92.101.179"
-SERVER_PORT="51820"
+    echo "正在安装 WireGuard 工具..."
+    sudo apt install -y wireguard-tools
 
-# 设置客户端配置（内置配置文件）
-WG_CONFIG="
-[Interface]
-PrivateKey = YOUR_PRIVATE_KEY
-Address = 10.8.0.2/24
-DNS = 1.1.1.1
-
-[Peer]
-PublicKey = YOUR_PUBLIC_KEY
-PresharedKey = YOUR_PRESHARED_KEY
-AllowedIPs = 10.8.0.0/24
-Endpoint = ${SERVER_IP}:${SERVER_PORT}
-"
-
-# 创建 WireGuard 配置目录（确保目录存在）
-mkdir -p /etc/wireguard
-
-# 函数：安装 WireGuard 客户端
-install_wg_client() {
-    # 写入客户端配置文件
-    echo "$WG_CONFIG" > /tmp/wg0-temp.conf
-
-    # 确保目标目录存在
-    if [ ! -d "/etc/wireguard" ]; then
-        echo "[ERROR] 目标目录 /etc/wireguard 不存在！"
-        exit 1
-    fi
-
-    # 移动临时配置文件到目标目录
-    mv /tmp/wg0-temp.conf /etc/wireguard/wg0.conf
-    echo "[INFO] 配置文件写入完成"
-
-    # 设置开机启动
-    echo "是否设置开机自启? (Y/n)"
-    read -r AUTO_START
-    AUTO_START="${AUTO_START:-Y}"
-
-    if [[ "$AUTO_START" == "Y" || "$AUTO_START" == "y" ]]; then
-        systemctl enable wg-quick@wg0
-        echo "已设置开机自启"
-    else
-        echo "跳过开机自启设置"
-    fi
-
-    # 安装 WireGuard
-    apt update -y
-    apt install -y wireguard
-
-    # 启动 WireGuard
-    systemctl start wg-quick@wg0
-
-    echo "=============================================="
-    echo "     WireGuard 客户端安装完成"
-    echo "     公网IP: ${SERVER_IP}, 端口: ${SERVER_PORT}"
-    echo "=============================================="
+    echo "WireGuard 工具已安装！"
 }
 
-# 主菜单
-menu() {
-    echo "=============================================="
-    echo "请选择操作:"
-    echo "1) 安装 WireGuard 客户端"
-    echo "2) 卸载 WireGuard 客户端"
-    echo "0) 退出"
-    echo "=============================================="
-    read -r -p "请输入选项: " op
+# 2. 配置 WireGuard 文件
+configure_wireguard() {
+    # 复制配置文件到 /etc/wireguard 目录
+    echo "正在复制配置文件到 /etc/wireguard/"
+    sudo cp /boot/debian13.conf /etc/wireguard/
 
-    case "$op" in
-        1) install_wg_client ;;
-        2) uninstall_wg_client ;;
-        0) exit 0 ;;
-        *) echo "无效选项！"; menu ;;
-    esac
+    # 设置文件权限
+    echo "设置文件权限为 600"
+    sudo chmod 600 /etc/wireguard/debian13.conf
+
+    # 删除 IPv6，保留 IPv4，并配置为 10.8.0.0/24
+    echo "配置 IPv4 地址，删除 IPv6 地址..."
+    sudo sed -i 's/AllowedIPs = .*::\/0/AllowedIPs = 10.8.0.0\/24/' /etc/wireguard/debian13.conf
+
+    # 确保文件权限为 root 用户读写
+    echo "验证文件权限"
+    ls -l /etc/wireguard/debian13.conf
+    echo "配置文件已复制并授权成功！"
 }
 
-# 执行主菜单
-menu
+# 3. 配置自启动
+enable_autostart() {
+    echo "配置 WireGuard 开机自启..."
+    sudo systemctl enable wg-quick@debian13
+    echo "WireGuard 开机自启已启用！"
+}
+
+# 4. 启动 WireGuard 连接
+start_wireguard() {
+    echo "启动 WireGuard 连接..."
+    sudo wg-quick up debian13
+    echo "WireGuard 连接已启动！"
+}
+
+# 5. 验证连接状态
+check_status() {
+    echo "验证连接状态..."
+    sudo wg
+}
+
+# 6. 拆卸 WireGuard 和清除残留
+uninstall_wireguard() {
+    echo "正在卸载 WireGuard..."
+    sudo wg-quick down debian13
+    sudo apt remove --purge -y wireguard-tools
+
+    # 删除 /etc/wireguard 目录及其内容
+    echo "删除 WireGuard 配置目录..."
+    sudo rm -rf /etc/wireguard
+
+    # 删除 /boot 目录中的配置文件（如果存在）
+    sudo rm -f /boot/debian13.conf
+
+    echo "WireGuard 已卸载，所有配置文件已删除！"
+}
+
+# 主要执行
+echo "请选择操作："
+echo "1. 安装并配置 WireGuard"
+echo "2. 启动 WireGuard 连接"
+echo "3. 启用开机自启"
+echo "4. 验证连接状态"
+echo "5. 卸载 WireGuard"
+
+read -p "请输入操作编号: " option
+
+case $option in
+    1)
+        install_wireguard
+        configure_wireguard
+        enable_autostart
+        start_wireguard
+        check_status
+        ;;
+    2)
+        start_wireguard
+        check_status
+        ;;
+    3)
+        enable_autostart
+        ;;
+    4)
+        check_status
+        ;;
+    5)
+        uninstall_wireguard
+        ;;
+    *)
+        echo "无效选项，请重新选择。"
+        ;;
+esac
