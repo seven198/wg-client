@@ -4,11 +4,11 @@ echo "     WireGuard 客户端一键安装（Debian）"
 echo "        支持开机自动启动（可交互）"
 echo "=============================================="
 
-# 设置默认服务器IP和端口（内置）
+# 设置公网IP和端口（内置）
 SERVER_IP="34.92.101.179"
 SERVER_PORT="51820"
 
-# 预生成的客户端配置内容
+# 设置客户端配置（内置配置文件）
 WG_CONFIG="
 [Interface]
 PrivateKey = YOUR_PRIVATE_KEY
@@ -22,34 +22,15 @@ AllowedIPs = 10.8.0.0/24
 Endpoint = ${SERVER_IP}:${SERVER_PORT}
 "
 
-# 临时文件路径
-TEMP_FILE="/tmp/wg0-temp.conf"
-
 # 函数：安装 WireGuard 客户端
 install_wg_client() {
     # 更新并安装必要的软件包
     apt update -y
     apt install -y wireguard
 
-    # 询问是否使用临时配置文件
-    echo "是否使用临时生成的配置文件？(Y/n)"
-    read -r USE_TEMP_CONFIG
-    USE_TEMP_CONFIG="${USE_TEMP_CONFIG:-Y}"
-
-    if [[ "$USE_TEMP_CONFIG" == "Y" || "$USE_TEMP_CONFIG" == "y" ]]; then
-        echo "[INFO] 使用临时配置文件"
-        echo "$WG_CONFIG" > "$TEMP_FILE"
-        echo "[INFO] 配置文件写入完成：$TEMP_FILE"
-        echo "请输入配置文件路径（按回车使用默认配置）："
-        read -r CONFIG_PATH
-        CONFIG_PATH="${CONFIG_PATH:-$TEMP_FILE}"
-
-        # 将配置文件写入到系统的 WireGuard 配置目录
-        mv "$CONFIG_PATH" /etc/wireguard/wg0.conf
-    else
-        echo "[INFO] 请输入自定义配置文件内容"
-        nano /etc/wireguard/wg0.conf
-    fi
+    # 创建配置文件
+    echo "$WG_CONFIG" > /etc/wireguard/wg0.conf
+    echo "[INFO] 配置文件写入完成"
 
     # 设置开机启动
     echo "是否设置开机自启? (Y/n)"
