@@ -14,44 +14,44 @@ install_wireguard() {
 
 # 2. 配置 WireGuard 文件
 configure_wireguard() {
-    # 提示用户将配置文件放入 /root 目录
-    echo "请将您的 WireGuard 配置文件放入 /root 目录，并确保文件名为 debian13.conf。"
-    read -p "如果文件已放好，请按 1 继续，如果没有放文件请按回车退出安装：" choice
+    # 自动查找 /root 目录中的 .conf 文件
+    config_file=$(find /root -type f -name "*.conf" | head -n 1)
 
-    if [ "$choice" != "1" ]; then
-        echo "未找到配置文件，安装终止！"
+    if [ -z "$config_file" ]; then
+        echo "未在 /root 目录中找到配置文件，安装终止！"
+        echo "请将 WireGuard 配置文件放入 /root 目录，并确保文件名以 .conf 为后缀。"
         exit 1
     fi
 
     # 复制配置文件到 /etc/wireguard 目录
     echo "正在复制配置文件到 /etc/wireguard/"
-    sudo cp /root/debian13.conf /etc/wireguard/
+    sudo cp "$config_file" /etc/wireguard/
 
     # 设置文件权限
     echo "设置文件权限为 600"
-    sudo chmod 600 /etc/wireguard/debian13.conf
+    sudo chmod 600 /etc/wireguard/$(basename "$config_file")
 
-    # 删除 IPv6，保留 IPv4，并配置为 10.8.0.0/24
-    echo "配置 IPv4 地址，删除 IPv6 地址..."
-    sudo sed -i 's/AllowedIPs = .*::\/0/AllowedIPs = 10.8.0.0\/24/' /etc/wireguard/debian13.conf
+    # 跳过修改 IP 地址，直接载入配置文件中的内容
+    echo "直接载入配置文件中的内容，不修改 IP 地址..."
+    # 无需对配置文件内容做修改，直接使用
 
     # 确保文件权限为 root 用户读写
     echo "验证文件权限"
-    ls -l /etc/wireguard/debian13.conf
+    ls -l /etc/wireguard/$(basename "$config_file")
     echo "配置文件已复制并授权成功！"
 }
 
 # 3. 配置自启动
 enable_autostart() {
     echo "配置 WireGuard 开机自启..."
-    sudo systemctl enable wg-quick@debian13
+    sudo systemctl enable wg-quick@$(basename "$config_file" .conf)
     echo "WireGuard 开机自启已启用！"
 }
 
 # 4. 启动 WireGuard 连接
 start_wireguard() {
     echo "启动 WireGuard 连接..."
-    sudo wg-quick up debian13
+    sudo wg-quick up $(basename "$config_file" .conf)
     echo "WireGuard 连接已启动！"
 }
 
@@ -64,15 +64,15 @@ check_status() {
 # 6. 拆卸 WireGuard 和清除残留
 uninstall_wireguard() {
     echo "正在卸载 WireGuard..."
-    sudo wg-quick down debian13
+    sudo wg-quick down $(basename "$config_file" .conf)
     sudo apt remove --purge -y wireguard-tools
 
     # 删除 /etc/wireguard 目录及其内容
     echo "删除 WireGuard 配置目录..."
     sudo rm -rf /etc/wireguard
 
-    # 删除 /boot 目录中的配置文件（如果存在）
-    sudo rm -f /boot/debian13.conf
+    # 删除配置文件
+    sudo rm -f "$config_file"
 
     echo "WireGuard 已卸载，所有配置文件已删除！"
 }
