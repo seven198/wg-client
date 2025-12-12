@@ -1,4 +1,5 @@
 #!/bin/bash
+
 echo "=============================================="
 echo "     WireGuard 客户端一键安装（Debian）"
 echo "        支持开机自动启动（可交互）"
@@ -22,14 +23,22 @@ AllowedIPs = 10.8.0.0/24
 Endpoint = ${SERVER_IP}:${SERVER_PORT}
 "
 
+# 创建 WireGuard 配置目录（确保目录存在）
+mkdir -p /etc/wireguard
+
 # 函数：安装 WireGuard 客户端
 install_wg_client() {
-    # 更新并安装必要的软件包
-    apt update -y
-    apt install -y wireguard
+    # 写入客户端配置文件
+    echo "$WG_CONFIG" > /tmp/wg0-temp.conf
 
-    # 创建配置文件
-    echo "$WG_CONFIG" > /etc/wireguard/wg0.conf
+    # 确保目标目录存在
+    if [ ! -d "/etc/wireguard" ]; then
+        echo "[ERROR] 目标目录 /etc/wireguard 不存在！"
+        exit 1
+    fi
+
+    # 移动临时配置文件到目标目录
+    mv /tmp/wg0-temp.conf /etc/wireguard/wg0.conf
     echo "[INFO] 配置文件写入完成"
 
     # 设置开机启动
@@ -39,10 +48,14 @@ install_wg_client() {
 
     if [[ "$AUTO_START" == "Y" || "$AUTO_START" == "y" ]]; then
         systemctl enable wg-quick@wg0
-        echo "[INFO] 已设置开机自启"
+        echo "已设置开机自启"
     else
-        echo "[INFO] 跳过开机自启设置"
+        echo "跳过开机自启设置"
     fi
+
+    # 安装 WireGuard
+    apt update -y
+    apt install -y wireguard
 
     # 启动 WireGuard
     systemctl start wg-quick@wg0
@@ -51,34 +64,6 @@ install_wg_client() {
     echo "     WireGuard 客户端安装完成"
     echo "     公网IP: ${SERVER_IP}, 端口: ${SERVER_PORT}"
     echo "=============================================="
-}
-
-# 函数：卸载 WireGuard 客户端
-uninstall_wg_client() {
-    echo "=============================================="
-    echo "     开始卸载 WireGuard 客户端"
-    echo "=============================================="
-
-    # 停止 WireGuard 服务
-    systemctl stop wg-quick@wg0
-
-    # 禁用开机自启
-    systemctl disable wg-quick@wg0
-
-    # 删除 WireGuard 配置文件
-    rm -f /etc/wireguard/wg0.conf
-
-    # 卸载 WireGuard
-    apt remove -y wireguard
-    apt purge -y wireguard
-
-    # 清理残留文件
-    rm -rf /etc/wireguard
-    echo "WireGuard 客户端卸载完成"
-
-    # 清理自启文件
-    rm -f /etc/systemd/system/wg-quick@wg0.service
-    echo "所有相关文件已删除"
 }
 
 # 主菜单
